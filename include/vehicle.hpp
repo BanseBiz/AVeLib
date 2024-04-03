@@ -19,6 +19,7 @@
 #include <array>
 #include <string>
 #include <boost/uuid/uuid.hpp>
+#include <map>
 #include "movement.hpp"
 
 class Vehicle
@@ -47,12 +48,13 @@ class Vehicle
     std::array<double,3> getAcceleration() const;
     std::array<double,3> getAngularAcceleration() const;
     std::string toString() const;
-    int toCString(char*,size_t) const;
-    int toCString(char*,size_t,Vehicle&) const;
+    size_t toCString(char*,size_t) const;
+    size_t toCString(char*,size_t,Vehicle&) const;
     boost::uuids::uuid getUUID() const;
     double getPerimeter() const;
     time_t getMaxAge() const;
     time_t getRecentUpdate() const;
+    std::map<boost::uuids::uuid,double> alpha;
 
     private:
     boost::uuids::uuid _uuid;

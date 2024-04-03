@@ -173,9 +173,9 @@ time_t Vehicle::getRecentUpdate() const {
     return _recent_update[0];
 }
 
-int Vehicle::toCString(char* out, size_t max) const {
+size_t Vehicle::toCString(char* out, size_t max) const {
     const std::string s_uuid = boost::uuids::to_string(_uuid);
-    int idx = snprintf(out, max,
+    size_t idx = snprintf(out, max,
         "{\"type\":\"ground\","
         "\"uuid\":\"%s\","
         "\"timestamp\":\"%lu\"",
@@ -235,13 +235,22 @@ int Vehicle::toCString(char* out, size_t max) const {
             _max_age
         );
     }
-    idx += snprintf(out+idx, max-idx,
-        "}"
-    );
+    if (alpha.size() > 0L) {
+        idx += snprintf(out+idx, max-idx,",\"alpha\":{");
+        for ( const auto& elem : alpha ) {
+            const std::string id = boost::uuids::to_string(elem.first);
+            idx += snprintf(out+idx, max-idx,
+                "\"%s\":%.4f,",
+                id.c_str(),elem.second
+            );
+        }
+        snprintf(out+idx-1, max-idx+1,"}");
+    }
+    idx += snprintf(out+idx, max-idx,"}");
     return idx;
 }
 
-int Vehicle::toCString(char* out, size_t max, Vehicle& reference) const {
+size_t Vehicle::toCString(char* out, size_t max, Vehicle& reference) const {
     if ((_max_age > 0) && ((getRecentUpdate() + (_max_age*1000)) < reference.getRecentUpdate())) {
         return 0;
     }
@@ -263,7 +272,7 @@ int Vehicle::toCString(char* out, size_t max, Vehicle& reference) const {
         return 0;
     }
 
-    int idx = toCString(out, max) - 1;
+    size_t idx = toCString(out, max) - 1;
 
     return idx + snprintf(out+idx, max-idx-1,
         "\",distance\":%.4f,"
