@@ -2,19 +2,25 @@
 #include <boost/uuid/uuid_io.hpp>
 #include <array>
 
-Vehicle::Vehicle() {
+Vehicle::Vehicle()
+ : _write_lock(1), _read_lock(1) {
 
 };
 
 Vehicle::Vehicle(boost::uuids::uuid uuid)
- : _uuid(uuid) {
+ : _uuid(uuid), _write_lock(1), _read_lock(1) {
 
 };
 
 Vehicle::Vehicle(boost::uuids::uuid uuid, double lat, double lon, double alt, time_t timestamp)
- : _uuid(uuid) {
+ : _uuid(uuid), _write_lock(1), _read_lock(1) {
     setPosition(lat, lon, alt, timestamp);
 };
+
+Vehicle::Vehicle(const Vehicle&)
+: _write_lock(1), _read_lock(1) {
+
+}
 
 int Vehicle::setPosition(double lat, double lon, double alt, time_t timestamp) {
     if (timestamp < _recent_update[0]) return 1;
@@ -173,7 +179,8 @@ time_t Vehicle::getRecentUpdate() const {
     return _recent_update[0];
 }
 
-size_t Vehicle::toCString(char* out, size_t max) const {
+size_t Vehicle::toCString(char* out, size_t max) {
+    aquireRead();
     const std::string s_uuid = boost::uuids::to_string(_uuid);
     size_t idx = snprintf(out, max,
         "{\"type\":\"ground\","
@@ -247,11 +254,16 @@ size_t Vehicle::toCString(char* out, size_t max) const {
         snprintf(out+idx-1, max-idx+1,"}");
     }
     idx += snprintf(out+idx, max-idx,"}");
+    releaseRead();
     return idx;
 }
 
-size_t Vehicle::toCString(char* out, size_t max, Vehicle& reference) const {
+size_t Vehicle::toCString(char* out, size_t max, Vehicle& reference) {
+    aquireRead();
+    reference.aquireRead();
     if ((_max_age > 0) && ((getRecentUpdate() + (_max_age*1000)) < reference.getRecentUpdate())) {
+        releaseRead();
+        reference.releaseRead();
         return 0;
     }
     
@@ -272,11 +284,56 @@ size_t Vehicle::toCString(char* out, size_t max, Vehicle& reference) const {
         return 0;
     }
 
+    releaseRead();
     size_t idx = toCString(out, max) - 1;
+    aquireRead();
 
-    return idx + snprintf(out+idx, max-idx-1,
+    idx += snprintf(out+idx, max-idx-1,
         "\",distance\":%.4f,"
         "\"direction\":%.4f}",
         dist_dir[0], dist_dir[1]
     );
+    releaseRead();
+    reference.releaseRead();
+    return idx;
+}
+
+void Vehicle::aquireWrite() {
+    _writers_cnt_lock.lock();
+    if (++_writers_cnt == 1) {
+        _read_lock.acquire();
+    }
+    _writers_cnt_lock.unlock();
+
+    _write_lock.acquire();
+}
+
+void Vehicle::releaseWrite() {
+    _write_lock.release();
+
+    _writers_cnt_lock.lock();
+    if (--_writers_cnt == 0) {
+        _read_lock.release();
+    }
+    _writers_cnt_lock.unlock();
+}
+
+void Vehicle::aquireRead() {
+    _read_lock.acquire();
+    _writers_priority_lock.lock();
+    _readers_cnt_lock.lock();
+    if (++_readers_cnt == 1) {
+        _write_lock.acquire();
+    }
+    _readers_cnt_lock.unlock();
+    _writers_priority_lock.unlock();
+    _read_lock.release();
+}
+
+void Vehicle::releaseRead() {
+    _readers_cnt_lock.lock();
+    if (--_readers_cnt == 0) {
+        _write_lock.release();
+    }
+    _readers_cnt_lock.unlock();
 }

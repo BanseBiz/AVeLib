@@ -21,6 +21,8 @@
 #include <boost/uuid/uuid.hpp>
 #include <map>
 #include "movement.hpp"
+#include <mutex>
+#include <semaphore>
 
 class Vehicle
 {
@@ -28,6 +30,8 @@ class Vehicle
     Vehicle();
     Vehicle(boost::uuids::uuid);
     Vehicle(boost::uuids::uuid, double, double, double, time_t);
+    Vehicle(const Vehicle&);
+
     int tick(time_t);
     
     int setPosition(double, double, double, time_t);
@@ -47,14 +51,17 @@ class Vehicle
     std::array<double,3> getRotation() const;
     std::array<double,3> getAcceleration() const;
     std::array<double,3> getAngularAcceleration() const;
-    std::string toString() const;
-    size_t toCString(char*,size_t) const;
-    size_t toCString(char*,size_t,Vehicle&) const;
+    
+    size_t toCString(char*,size_t);
+    size_t toCString(char*,size_t,Vehicle&);
     boost::uuids::uuid getUUID() const;
     double getPerimeter() const;
     time_t getMaxAge() const;
     time_t getRecentUpdate() const;
     std::map<boost::uuids::uuid,double> alpha;
+
+    void aquireWrite();
+    void releaseWrite();
 
     private:
     boost::uuids::uuid _uuid;
@@ -69,4 +76,16 @@ class Vehicle
     time_t _max_age = 0L;                            // maximal age of AVs the av wants to be notified about
 
     time_t _recent_update[7] = {0L,0L,0L,0L,0L,0L,0L};
+
+    std::binary_semaphore _write_lock;
+    std::mutex _writers_cnt_lock;
+    unsigned int _writers_cnt = 0;
+    std::mutex _writers_priority_lock;
+
+    std::binary_semaphore _read_lock;
+    std::mutex _readers_cnt_lock;
+    unsigned int _readers_cnt = 0;
+
+    void aquireRead();
+    void releaseRead();
 };
