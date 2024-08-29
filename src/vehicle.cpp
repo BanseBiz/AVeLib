@@ -3,24 +3,33 @@
 #include <array>
 
 Vehicle::Vehicle()
- : _write_lock(1), _read_lock(1) {
-
+ : _write_lock(1), _read_lock(1), _has_uuid(false) {
 };
 
 Vehicle::Vehicle(boost::uuids::uuid uuid)
- : _uuid(uuid), _write_lock(1), _read_lock(1) {
+ : _uuid(uuid), _write_lock(1), _read_lock(1), _has_uuid(true) {
 
 };
 
 Vehicle::Vehicle(boost::uuids::uuid uuid, double lat, double lon, double alt, time_t timestamp)
- : _uuid(uuid), _write_lock(1), _read_lock(1) {
+ : _uuid(uuid), _write_lock(1), _read_lock(1), _has_uuid(true) {
     setPosition(lat, lon, alt, timestamp);
 };
 
 Vehicle::Vehicle(const Vehicle&)
-: _write_lock(1), _read_lock(1) {
+: _write_lock(1), _read_lock(1), _has_uuid(false) {
 
 }
+bool Vehicle::hasUUID() {
+    return  _has_uuid;
+}
+
+bool Vehicle::setUUID(boost::uuids::uuid uuid) {
+    if (_has_uuid) return false;
+    _uuid = uuid;
+    return true;
+}
+
 
 int Vehicle::setPosition(double lat, double lon, double alt, time_t timestamp) {
     if (timestamp < _recent_update[0]) return 1;

@@ -33,6 +33,8 @@ class Vehicle
     Vehicle(const Vehicle&);
 
     int tick(time_t);
+    bool hasUUID();
+    bool setUUID(boost::uuids::uuid);
     
     int setPosition(double, double, double, time_t);
     int setPosStdDev(double, double, double, time_t);
@@ -44,6 +46,9 @@ class Vehicle
 
     int setConfPerimeter(double);
     int setConfMaxAge(time_t);
+
+    void aquireWrite();
+    void releaseWrite();
 
     std::array<double,3> getPosition() const;
     std::array<double,3> getOrientation() const;
@@ -59,9 +64,6 @@ class Vehicle
     time_t getMaxAge() const;
     time_t getRecentUpdate() const;
     std::map<boost::uuids::uuid,double> alpha;
-
-    void aquireWrite();
-    void releaseWrite();
 
     private:
     boost::uuids::uuid _uuid;
@@ -85,6 +87,7 @@ class Vehicle
     std::binary_semaphore _read_lock;
     std::mutex _readers_cnt_lock;
     unsigned int _readers_cnt = 0;
+    bool _has_uuid;
 
     void aquireRead();
     void releaseRead();
